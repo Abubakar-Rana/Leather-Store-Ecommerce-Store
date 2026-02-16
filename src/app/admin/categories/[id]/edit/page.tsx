@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Plus, X } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, Plus, X } from 'lucide-react';
 
 interface Category {
   _id: string;
@@ -18,13 +19,11 @@ interface Subcategory {
 }
 
 export default function EditCategory() {
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-  });
+  const [form, setForm] = useState({ name: '', description: '' });
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [newSubcategory, setNewSubcategory] = useState({ name: '', description: '' });
+  const [newSub, setNewSub] = useState({ name: '', description: '' });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const router = useRouter();
   const { id } = useParams();
 
@@ -34,10 +33,7 @@ export default function EditCategory() {
         const response = await fetch(`/api/categories/${id}`);
         if (response.ok) {
           const category: Category = await response.json();
-          setForm({
-            name: category.name,
-            description: category.description,
-          });
+          setForm({ name: category.name, description: category.description });
           setSubcategories(category.subcategories || []);
         }
       } catch (error) {
@@ -46,155 +42,182 @@ export default function EditCategory() {
         setLoading(false);
       }
     };
-
     if (id) fetchCategory();
   }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = {
-      ...form,
-      subcategories: subcategories.length > 0 ? subcategories : undefined,
-    };
-
+    setSaving(true);
     try {
       const response = await fetch(`/api/categories/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...form,
+          subcategories: subcategories.length > 0 ? subcategories : undefined,
+        }),
       });
-
       if (response.ok) {
         router.push('/admin/categories');
       } else {
         alert('Failed to update category');
+        setSaving(false);
       }
-    } catch (error) {
+    } catch {
       alert('Network error');
+      setSaving(false);
     }
   };
 
   const addSubcategory = () => {
-    if (newSubcategory.name.trim()) {
-      setSubcategories([...subcategories, { ...newSubcategory }]);
-      setNewSubcategory({ name: '', description: '' });
+    if (newSub.name.trim()) {
+      setSubcategories([...subcategories, { ...newSub }]);
+      setNewSub({ name: '', description: '' });
     }
   };
 
-  const removeSubcategory = (index: number) => {
-    setSubcategories(subcategories.filter((_, i) => i !== index));
-  };
+  const inputClass =
+    'w-full rounded-lg border border-input bg-card px-3 py-2.5 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring';
+  const labelClass = 'block text-sm font-medium text-foreground mb-1.5';
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 p-6">
-        <div className="text-center">Loading category...</div>
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-2xl">
+          <div className="flex items-center justify-center py-20">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Edit Category</h1>
-        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md space-y-6">
-          <div>
-            <label className="block text-gray-700 mb-2">Category Name</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={e => setForm({ ...form, name: e.target.value })}
-              className="w-full p-2 border border-gray-300 rounded"
-              required
-            />
-          </div>
+    <div className="px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-2xl">
+        <Link
+          href="/admin/categories"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to Categories
+        </Link>
 
-          <div>
-            <label className="block text-gray-700 mb-2">Description</label>
-            <textarea
-              value={form.description}
-              onChange={e => setForm({ ...form, description: e.target.value })}
-              className="w-full p-2 border border-gray-300 rounded h-24"
-              required
-            />
-          </div>
+        <h1 className="font-serif text-2xl font-bold text-foreground">Edit Category</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Update the category details and manage subcategories.
+        </p>
 
-          <div>
-            <label className="block text-gray-700 mb-2">Subcategories</label>
-            <div className="space-y-2">
-              {subcategories.map((sub, index) => (
-                <div key={index} className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
-                  <input
-                    type="text"
-                    value={sub.name}
-                    onChange={e => {
-                      const updated = [...subcategories];
-                      updated[index].name = e.target.value;
-                      setSubcategories(updated);
-                    }}
-                    className="flex-1 p-1 border border-gray-300 rounded"
-                  />
-                  <input
-                    type="text"
-                    value={sub.description}
-                    onChange={e => {
-                      const updated = [...subcategories];
-                      updated[index].description = e.target.value;
-                      setSubcategories(updated);
-                    }}
-                    className="flex-1 p-1 border border-gray-300 rounded"
-                    placeholder="Description"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeSubcategory(index)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+        <form onSubmit={handleSubmit} className="mt-6 rounded-xl border border-border bg-card p-6">
+          <div className="flex flex-col gap-5">
+            <div>
+              <label className={labelClass}>Category Name</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className={inputClass}
+                required
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Description</label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className={`${inputClass} h-24 resize-none`}
+                required
+              />
+            </div>
+
+            {/* Subcategories */}
+            <div>
+              <label className={labelClass}>Subcategories</label>
+
+              {subcategories.length > 0 && (
+                <div className="flex flex-col gap-2 mb-3">
+                  {subcategories.map((sub, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-3 py-2"
+                    >
+                      <input
+                        type="text"
+                        value={sub.name}
+                        onChange={(e) => {
+                          const updated = [...subcategories];
+                          updated[index] = { ...updated[index], name: e.target.value };
+                          setSubcategories(updated);
+                        }}
+                        className="flex-1 rounded border border-input bg-card px-2 py-1.5 text-sm text-card-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        placeholder="Name"
+                      />
+                      <input
+                        type="text"
+                        value={sub.description}
+                        onChange={(e) => {
+                          const updated = [...subcategories];
+                          updated[index] = { ...updated[index], description: e.target.value };
+                          setSubcategories(updated);
+                        }}
+                        className="flex-1 rounded border border-input bg-card px-2 py-1.5 text-sm text-card-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        placeholder="Description"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setSubcategories(subcategories.filter((_, i) => i !== index))}
+                        className="rounded p-1 text-muted-foreground hover:text-destructive transition-colors"
+                        aria-label="Remove subcategory"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
 
-            <div className="flex space-x-2 mt-2">
-              <input
-                type="text"
-                placeholder="Subcategory name"
-                value={newSubcategory.name}
-                onChange={e => setNewSubcategory({ ...newSubcategory, name: e.target.value })}
-                className="flex-1 p-2 border border-gray-300 rounded"
-              />
-              <input
-                type="text"
-                placeholder="Description"
-                value={newSubcategory.description}
-                onChange={e => setNewSubcategory({ ...newSubcategory, description: e.target.value })}
-                className="flex-1 p-2 border border-gray-300 rounded"
-              />
-              <button
-                type="button"
-                onClick={addSubcategory}
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Subcategory name"
+                  value={newSub.name}
+                  onChange={(e) => setNewSub({ ...newSub, name: e.target.value })}
+                  className={`${inputClass} flex-1`}
+                />
+                <input
+                  type="text"
+                  placeholder="Description"
+                  value={newSub.description}
+                  onChange={(e) => setNewSub({ ...newSub, description: e.target.value })}
+                  className={`${inputClass} flex-1`}
+                />
+                <button
+                  type="button"
+                  onClick={addSubcategory}
+                  className="flex-shrink-0 rounded-lg bg-secondary px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary/80 transition-colors"
+                  aria-label="Add subcategory"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="flex space-x-4">
+          <div className="mt-6 flex items-center gap-3 border-t border-border pt-6">
             <button
               type="submit"
-              className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+              disabled={saving}
+              className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-50"
             >
-              Update Category
+              {saving ? 'Saving...' : 'Update Category'}
             </button>
-            <button
-              type="button"
-              onClick={() => router.push('/admin/categories')}
-              className="bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-700"
+            <Link
+              href="/admin/categories"
+              className="rounded-lg border border-border px-5 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
               Cancel
-            </button>
+            </Link>
           </div>
         </form>
       </div>
